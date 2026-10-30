@@ -117,7 +117,7 @@
       document.body.classList.add('cbn'); $('#cbn-bar').hidden = false; $('#cbn-num').style.opacity = 1;
       renderBar(); select(1); refresh(); app.setTool('fill');
       // fit the page above the number bar
-      var v = app.view, vr = $('#viewport').getBoundingClientRect(), bh = $('#cbn-bar').getBoundingClientRect().height + 24, sc = Math.min(vr.width, vr.height - bh) * 0.94 / S;
+      var v = app.view, vr = $('#viewport').getBoundingClientRect(), br = $('#cbn-bar').getBoundingClientRect(), bh = Math.max(0, vr.bottom - br.top + 8), sc = Math.min(vr.width, vr.height - bh) * 0.94 / S;
       if (sc > 0.1) { v.scale = sc; v.x = (vr.width - S * sc) / 2; v.y = Math.max(8, (vr.height - bh - S * sc) / 2); v.panBy(0, 0); }
       cb && cb();
     };

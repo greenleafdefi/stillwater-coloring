@@ -7,7 +7,7 @@ Still.View = function (viewport, stack, size) {
   this.min = 0.3; this.max = 8;
   function apply() { stack.style.transform = 'translate(' + self.x + 'px,' + self.y + 'px) scale(' + self.scale + ')'; if (self.onChange) self.onChange(); }
   this.fit = function () {
-    var r = viewport.getBoundingClientRect(), s = Math.min(r.width, r.height) * 0.92 / size;
+    var r = viewport.getBoundingClientRect(); if (r.width < 20 || r.height < 20) { if ((self._retry = (self._retry || 0) + 1) < 30) requestAnimationFrame(self.fit); return; } self._retry = 0; var s = Math.min(r.width, r.height) * 0.92 / size;
     self.scale = s; self.x = (r.width - size * s) / 2; self.y = (r.height - size * s) / 2; apply();
   };
   this.zoomAt = function (factor, cx, cy) {

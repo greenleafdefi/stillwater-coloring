@@ -107,7 +107,7 @@
     if (p.easy) setPalette('Petal Soft');
     if (p.relax) { setPalette('Relax Pastel'); if (!calm.active()) { calm.toggle(); $('#calm-btn').classList.add('primary'); } }
     if (Still.CBN) Still.CBN.stop(); document.body.dataset.ready = '0';
-    state.page = p; $('#gallery').hidden = true; $('#studio').hidden = false; $('#page-title').textContent = p.title + ' · ' + p.theme;
+    state.page = p; $('#gallery').hidden = true; $('#studio').hidden = false; $('#page-title').textContent = p.title.indexOf(p.theme) === 0 ? p.title : p.title + ' · ' + p.theme;
     engine.pctx.clearRect(0, 0, SIZE, SIZE); engine.resetHistory(); engine.ops = [];
     engine.loadLineArt(p.png || p.svg, function () {
       var s = Still.store.loadPage(id);
@@ -321,11 +321,12 @@
       $('#ph-stats').textContent = r.regions + ' fillable areas · ' + Math.round(performance.now() - t0) + ' ms';
     }, 120);
   }
+  function nextPhotoName() { var n = pages.filter(function (p) { return p.theme === 'My photo'; }).length + 1; return 'My photo ' + n; }
   function phLoad(file) {
     if (!file || !/^image\//.test(file.type)) { toast('Please choose an image file.'); return; }
     var rd = new FileReader();
     rd.onload = function () { var im = new Image(); im.onload = function () {
-      ph.img = im; $('#photo-work').hidden = false; $('#ph-name').value = file.name.replace(/\.[^.]+$/, '').slice(0, 28);
+      ph.img = im; $('#photo-work').hidden = false; $('#ph-name').value = ''; $('#ph-name').placeholder = nextPhotoName();
       var b = $('#ph-before'); b.width = b.height = 600; var bx = b.getContext('2d'); bx.fillStyle = '#fbfaf7'; bx.fillRect(0, 0, 600, 600);
       var s = Math.min(520 / im.width, 520 / im.height); bx.drawImage(im, (600 - im.width * s) / 2, (600 - im.height * s) / 2, im.width * s, im.height * s);
       phRender(); }; im.onerror = function () { toast('This image could not be opened.'); }; im.src = rd.result; };
@@ -347,7 +348,7 @@
     if (!ph.img) return; $('#ph-start').textContent = 'Making your page…';
     setTimeout(function () {
       var r = Still.Photo.convert(ph.img, phOpts(600)), id = 'photo-' + Date.now();
-      var page = { id: id, title: ($('#ph-name').value || 'My photo').slice(0, 28), theme: 'My photo', png: r.canvas.toDataURL('image/png') };
+      var page = { id: id, title: ($('#ph-name').value.trim() || nextPhotoName()).slice(0, 28), theme: 'My photo', png: r.canvas.toDataURL('image/png') };
       if ($('#ph-cbn').checked) { var sc = Math.min(1, 480 / Math.max(ph.img.width, ph.img.height)), cc = document.createElement('canvas'); cc.width = Math.round(ph.img.width * sc); cc.height = Math.round(ph.img.height * sc);
         cc.getContext('2d').drawImage(ph.img, 0, 0, cc.width, cc.height); page.cmap = cc.toDataURL('image/jpeg', 0.85); page.cmapFit = r.fit; page.cbn = true; }
       var list = Still.store.get('custom-pages', []); list.push(page);
