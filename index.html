@@ -132,17 +132,17 @@
     <div id="photo-work" hidden>
       <div class="ba">
         <figure><canvas id="ph-before"></canvas><figcaption>Before</figcaption></figure>
-        <figure><canvas id="ph-after"></canvas><figcaption>After · <span id="ph-stats">…</span></figcaption></figure>
+        <figure><canvas id="ph-after"></canvas><figcaption>After · <span id="ph-stats" aria-live="polite">…</span></figcaption><div id="ph-working" class="ph-working" hidden aria-hidden="true"><i></i><i></i><i></i><span>Working…</span></div></figure>
       </div>
       <div class="ph-controls">
         <div class="seg" id="ph-style">
-          <button data-style="outline" class="on">Clean outline</button><button data-style="sketch">Sketch</button><button data-style="mosaic">Mosaic regions</button>
+          <button data-style="portrait" class="on" title="Best for people: keeps eyes, brows and lips, smooths face shading">Portrait</button><button data-style="outline">Clean outline</button><button data-style="sketch">Sketch</button><button data-style="mosaic">Mosaic regions</button>
         </div>
-        <label class="slider">Detail <output id="ph-detail-v">5</output><input id="ph-detail" type="range" min="1" max="10" value="5"></label>
+        <label class="slider">Detail <output id="ph-detail-v">7</output><input id="ph-detail" type="range" min="1" max="10" value="7"></label>
         <label class="slider">Line thickness <output id="ph-thick-v">2</output><input id="ph-thick" type="range" min="1" max="5" value="2"></label>
         <label class="slider">Simplify <output id="ph-simp-v">4</output><input id="ph-simp" type="range" min="0" max="10" value="4"></label>
         <label class="check"><input id="ph-regions" type="checkbox"> Add color-region outlines</label>
-        <label class="check"><input id="ph-cbn" type="checkbox"> Make it Color by Number (uses Mosaic)</label>
+        <label class="check"><input id="ph-cbn" type="checkbox"> Make it Color by Number (uses Portrait or Mosaic)</label>
         <label class="slider">Name <input id="ph-name" type="text" maxlength="28" placeholder="My photo"></label>
         <button id="ph-start" class="primary">Start coloring →</button>
       </div>
@@ -175,5 +175,6 @@
 <script src="js/pi.js"></script>
 <script src="js/cbn.js"></script>
 <script src="js/app.js"></script>
+<script src="js/phone.js"></script>
 </body>
 </html>

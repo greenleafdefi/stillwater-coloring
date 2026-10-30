@@ -8,12 +8,16 @@
 window.Still = window.Still || {};
 Still.Pi = (function () {
   var st = { loaded: false, ready: false, user: null, sandbox: /[?&]pi_sandbox=1/.test(location.search) || /^(localhost|127\.0\.0\.1)$/.test(location.hostname) };
+  /* Only the Pi Browser (its user agent contains "PiBrowser") or an explicit sandbox test URL ever sees Pi UI.
+     A normal browser never loads the SDK and never shows the button. */
+  st.inPiBrowser = /PiBrowser/i.test(navigator.userAgent || '');
+  st.enabled = st.inPiBrowser || /[?&]pi_sandbox=1/.test(location.search);
   var listeners = [];
   function emit() { listeners.forEach(function (f) { try { f(st); } catch (e) {} }); }
   function load() {
-    if (location.protocol === 'file:') return; // the SDK needs http(s)
+    if (!st.enabled || location.protocol === 'file:') return; // not Pi Browser, or no http(s): no SDK, no Pi UI
     var s = document.createElement('script'); s.src = 'https://sdk.minepi.com/pi-sdk.js'; s.async = true;
-    s.onload = function () { st.loaded = true; try { window.Pi.init({ version: '2.0', sandbox: st.sandbox }); st.ready = true; } catch (e) { st.ready = false; } emit(); };
+    s.onload = function () { st.loaded = true; try { window.Pi.init({ version: '2.0', sandbox: st.sandbox }); st.ready = typeof window.Pi.authenticate === 'function'; } catch (e) { st.ready = false; } emit(); };
     s.onerror = function () { st.loaded = false; emit(); };
     document.head.appendChild(s);
   }

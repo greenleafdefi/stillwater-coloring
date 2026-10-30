@@ -310,16 +310,21 @@
   engine.loadTextures(Still.textures);
 
   /* ---------- Photo to coloring page ---------- */
-  var ph = { img: null, style: 'outline', timer: null };
+  var ph = { img: null, style: 'portrait', timer: null, seq: 0 };
+  var phFinalWork = window.matchMedia && window.matchMedia('(max-width:820px)').matches ? 960 : 1120; // phones: a bit smaller so it stays near 3 s
   function phOpts(work) { return { style: ph.style, detail: +$('#ph-detail').value, thickness: +$('#ph-thick').value, simplify: +$('#ph-simp').value, regions: $('#ph-regions').checked, work: work }; }
+  function phBusy(on) { $('#ph-working').hidden = !on; $('#ph-after').classList.toggle('busy', on); }
   function phRender() {
-    if (!ph.img) return; $('#ph-stats').textContent = 'working…';
+    if (!ph.img) return; $('#ph-stats').textContent = 'working…'; phBusy(true);
     clearTimeout(ph.timer);
     ph.timer = setTimeout(function () {
-      var t0 = performance.now(), r = Still.Photo.convert(ph.img, phOpts(420)), out = $('#ph-after');
-      out.width = out.height = 600; out.getContext('2d').drawImage(r.canvas, 0, 0, 600, 600);
-      $('#ph-stats').textContent = r.regions + ' fillable areas · ' + Math.round(performance.now() - t0) + ' ms';
-    }, 120);
+      var my = ++ph.seq, t0 = performance.now();
+      Still.Photo.convertAsync(ph.img, phOpts(560)).then(function (r) {
+        if (my !== ph.seq) return; // a newer preview is on its way
+        var out = $('#ph-after'); out.width = out.height = 600; out.getContext('2d').drawImage(r.canvas, 0, 0, 600, 600);
+        $('#ph-stats').textContent = 'about ' + r.regions + ' fillable areas (preview) · ' + Math.round(performance.now() - t0) + ' ms'; phBusy(false);
+      });
+    }, 150);
   }
   function nextPhotoName() { var n = pages.filter(function (p) { return p.theme === 'My photo'; }).length + 1; return 'My photo ' + n; }
   function phLoad(file) {
@@ -343,11 +348,11 @@
     ph.style = b.dataset.style; document.querySelectorAll('#ph-style button').forEach(function (x) { x.classList.toggle('on', x === b); }); phRender(); }; });
   [['ph-detail', 'ph-detail-v'], ['ph-thick', 'ph-thick-v'], ['ph-simp', 'ph-simp-v']].forEach(function (p) { $('#' + p[0]).oninput = function () { $('#' + p[1]).textContent = this.value; phRender(); }; });
   $('#ph-regions').onchange = phRender;
-  $('#ph-cbn').onchange = function () { if (this.checked && ph.style !== 'mosaic') document.querySelector('#ph-style [data-style=mosaic]').click(); };
+  $('#ph-cbn').onchange = function () { if (this.checked && ph.style !== 'mosaic' && ph.style !== 'portrait') document.querySelector('#ph-style [data-style=portrait]').click(); };
   $('#ph-start').onclick = function () {
-    if (!ph.img) return; $('#ph-start').textContent = 'Making your page…';
-    setTimeout(function () {
-      var r = Still.Photo.convert(ph.img, phOpts(600)), id = 'photo-' + Date.now();
+    if (!ph.img || ph.making) return; ph.making = true; $('#ph-start').textContent = 'Making your page…'; $('#ph-start').disabled = true; phBusy(true);
+    Still.Photo.convertAsync(ph.img, phOpts(phFinalWork)).then(function (r) {
+      ph.making = false; $('#ph-start').disabled = false; phBusy(false); var id = 'photo-' + Date.now();
       var page = { id: id, title: ($('#ph-name').value.trim() || nextPhotoName()).slice(0, 28), theme: 'My photo', png: r.canvas.toDataURL('image/png') };
       if ($('#ph-cbn').checked) { var sc = Math.min(1, 480 / Math.max(ph.img.width, ph.img.height)), cc = document.createElement('canvas'); cc.width = Math.round(ph.img.width * sc); cc.height = Math.round(ph.img.height * sc);
         cc.getContext('2d').drawImage(ph.img, 0, 0, cc.width, cc.height); page.cmap = cc.toDataURL('image/jpeg', 0.85); page.cmapFit = r.fit; page.cbn = true; }
@@ -355,12 +360,12 @@
       $('#ph-start').textContent = 'Start coloring →';
       if (!Still.store.set('custom-pages', list)) { toast('Storage full — delete a photo page first.'); return; }
       pages.push(page); $('#photo').hidden = true; renderGallery(); openPage(id); toast('Your photo page is ready. Tap inside shapes to fill.');
-    }, 30);
+    });
   };
 
   /* ---------- optional Pi Browser sign-in (no payments) ---------- */
   if (Still.Pi) {
-    Still.Pi.onChange(function (st) { var b = $('#pi-signin'); b.hidden = !st.ready; if (st.user) { b.textContent = 'π ' + st.user.username; b.disabled = true; } });
+    Still.Pi.onChange(function (st) { var b = $('#pi-signin'); b.hidden = !(st.ready && st.enabled); if (st.user) { b.textContent = 'π ' + st.user.username; b.disabled = true; } });
     $('#pi-signin').onclick = function () { Still.Pi.signIn().then(function (u) { toast('Signed in as ' + u.username); }, function (e) { toast(e.message || 'Pi sign-in was cancelled.'); }); };
   }
   document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('card')) openPage(e.target.dataset.open); });
