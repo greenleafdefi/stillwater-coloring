@@ -363,7 +363,7 @@
 
   /* ---------- optional Pi Browser sign-in (no payments) ---------- */
   if (Still.Pi) {
-    Still.Pi.onChange(function (st) { var b = $('#pi-signin'); b.hidden = !(st.ready && st.enabled); if (st.user) { b.textContent = 'π ' + st.user.username; b.disabled = true; } });
+    Still.Pi.onChange(function (st) { var b = $('#pi-signin'); b.hidden = !(st.enabled && (st.ready || st.user)); if (st.user) { b.textContent = 'π ' + st.user.username; b.disabled = true; b.title = 'Signed in with Pi'; } else if (st.busy) b.textContent = 'π Signing in…'; else b.textContent = 'π Sign in with Pi'; });
     $('#pi-signin').onclick = function () { Still.Pi.signIn().then(function (u) { toast('Signed in as ' + u.username); }, function (e) { toast(e.message || 'Pi sign-in was cancelled.'); }); };
   }
   document.addEventListener('keydown', function (e) { if (e.key === 'Enter' && e.target.classList && e.target.classList.contains('card')) openPage(e.target.dataset.open); });

@@ -3,8 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 16 16%27%3E%3Ccircle cx=%278%27 cy=%278%27 r=%277%27 fill=%27%237fa279%27/%3E%3C/svg%3E">
+<link rel="icon" type="image/png" sizes="32x32" href="assets/icons/icon-32.png">
+<link rel="icon" type="image/png" sizes="192x192" href="assets/icons/icon-192.png">
+<link rel="apple-touch-icon" sizes="180x180" href="assets/icons/icon-180.png">
 <title>Stillwater — a calm coloring studio</title>
+<script src="https://sdk.minepi.com/pi-sdk.js"></script>
 <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -25,7 +28,7 @@
       <button class="tab" data-tab="favs">♥ Favorites</button>
     </nav>
     <div class="a11y" role="group" aria-label="Accessibility"><button class="a11y-btn" data-pref="easy" aria-pressed="false" title="Bigger buttons, simple tools, forgiving fill">Easy mode</button><button class="a11y-btn" data-pref="contrast" aria-pressed="false" title="Stronger colors and borders">High contrast</button><button class="a11y-btn" data-pref="bigtext" aria-pressed="false" title="Larger text">Larger text</button></div>
-    <button id="pi-signin" class="ghost" hidden title="Only shown inside the Pi Browser">π Sign in with Pi</button>
+    <button id="pi-signin" class="ghost" hidden title="Only shown inside Pi">π Sign in with Pi</button>
   </header>
   <div id="daily" class="daily"></div>
   <div class="mood-row">
