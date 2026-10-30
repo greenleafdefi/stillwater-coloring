@@ -1,1 +1,3 @@
-# stillwater-coloring
+# Stillwater
+
+Stillwater is a calm adult coloring app.
