@@ -2,13 +2,14 @@
    Two fingers = pinch zoom + pan. The canvas stack is moved with a CSS transform. */
 window.Still = window.Still || {};
 Still.View = function (viewport, stack, size) {
-  var self = this;
+  var self = this, W = size, H = size;
+  this.setSize = function (w, h) { W = w; H = h; };
   this.scale = 1; this.x = 0; this.y = 0;
   this.min = 0.3; this.max = 8;
   function apply() { stack.style.transform = 'translate(' + self.x + 'px,' + self.y + 'px) scale(' + self.scale + ')'; if (self.onChange) self.onChange(); }
   this.fit = function () {
-    var r = viewport.getBoundingClientRect(); if (r.width < 20 || r.height < 20) { if ((self._retry = (self._retry || 0) + 1) < 30) requestAnimationFrame(self.fit); return; } self._retry = 0; var s = Math.min(r.width, r.height) * 0.92 / size;
-    self.scale = s; self.x = (r.width - size * s) / 2; self.y = (r.height - size * s) / 2; apply();
+    var r = viewport.getBoundingClientRect(); if (r.width < 20 || r.height < 20) { if ((self._retry = (self._retry || 0) + 1) < 30) requestAnimationFrame(self.fit); return; } self._retry = 0; var s = Math.min(r.width / W, r.height / H) * 0.92;
+    self.scale = s; self.x = (r.width - W * s) / 2; self.y = (r.height - H * s) / 2; apply();
   };
   this.zoomAt = function (factor, cx, cy) {
     var ns = Math.max(self.min, Math.min(self.max, self.scale * factor)); factor = ns / self.scale;

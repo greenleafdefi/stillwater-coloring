@@ -4,7 +4,8 @@
 window.Still = window.Still || {};
 Still.Engine = function (paint, live, lines, size) {
   var self = this;
-  this.size = size;
+  var W = size, H = size; // page width × height (library pages are square; your own pages keep their shape)
+  this.size = size; this.W = W; this.H = H;
   this.paint = paint; this.pctx = paint.getContext('2d', { willReadFrequently: true });
   this.live = live; this.lctx = live.getContext('2d');
   this.lines = lines; this.linectx = lines.getContext('2d', { willReadFrequently: true });
@@ -18,8 +19,8 @@ Still.Engine = function (paint, live, lines, size) {
   this.loadLineArt = function (svg, cb) {
     var img = new Image();
     img.onload = function () {
-      self.linectx.clearRect(0, 0, size, size);
-      self.linectx.drawImage(this, 0, 0, size, size);
+      self.linectx.clearRect(0, 0, W, H);
+      self.linectx.drawImage(this, 0, 0, W, H);
       self.buildBarrier();
       cb && cb();
     };
@@ -30,13 +31,13 @@ Still.Engine = function (paint, live, lines, size) {
   };
 
   this.buildBarrier = function () {
-    var d = self.linectx.getImageData(0, 0, size, size).data, n = size * size;
+    var d = self.linectx.getImageData(0, 0, W, H).data, n = W * H;
     self.lineAlpha = new Uint8Array(n);
     for (var i = 0; i < n; i++) self.lineAlpha[i] = d[i * 4 + 3];
     self.applyTolerance();
   };
   this.applyTolerance = function () {
-    var n = size * size, b = new Uint8Array(n), t = self.tolerance, a = self.lineAlpha;
+    var n = W * H, b = new Uint8Array(n), t = self.tolerance, a = self.lineAlpha;
     for (var i = 0; i < n; i++) b[i] = a[i] >= t ? 1 : 0;
     self.barrier = b;
   };
@@ -47,21 +48,21 @@ Still.Engine = function (paint, live, lines, size) {
   /* Scanline flood fill on the barrier map. Returns region mask and bbox. */
   this.region = function (x, y) {
     x = x | 0; y = y | 0;
-    if (x < 0 || y < 0 || x >= size || y >= size) return null;
-    var b = self.barrier; if (!b || b[y * size + x]) return null;
-    var mask = new Uint8Array(size * size), stack = [x, y];
+    if (x < 0 || y < 0 || x >= W || y >= H) return null;
+    var b = self.barrier; if (!b || b[y * W + x]) return null;
+    var mask = new Uint8Array(W * H), stack = [x, y];
     var minX = x, maxX = x, minY = y, maxY = y, count = 0;
     while (stack.length) {
-      var sy = stack.pop(), sx = stack.pop(), i = sy * size + sx;
+      var sy = stack.pop(), sx = stack.pop(), i = sy * W + sx;
       if (mask[i] || b[i]) continue;
       var lx = sx, rx = sx;
       while (lx > 0 && !b[i - (sx - lx) - 1] && !mask[i - (sx - lx) - 1]) lx--;
-      while (rx < size - 1 && !b[i + (rx - sx) + 1] && !mask[i + (rx - sx) + 1]) rx++;
-      var row = sy * size;
+      while (rx < W - 1 && !b[i + (rx - sx) + 1] && !mask[i + (rx - sx) + 1]) rx++;
+      var row = sy * W;
       for (var px = lx; px <= rx; px++) {
         mask[row + px] = 1; count++;
-        if (sy > 0) { var u = row - size + px; if (!mask[u] && !b[u]) stack.push(px, sy - 1); }
-        if (sy < size - 1) { var dn = row + size + px; if (!mask[dn] && !b[dn]) stack.push(px, sy + 1); }
+        if (sy > 0) { var u = row - W + px; if (!mask[u] && !b[u]) stack.push(px, sy - 1); }
+        if (sy < H - 1) { var dn = row + W + px; if (!mask[dn] && !b[dn]) stack.push(px, sy + 1); }
       }
       if (lx < minX) minX = lx; if (rx > maxX) maxX = rx;
       if (sy < minY) minY = sy; if (sy > maxY) maxY = sy;
@@ -71,15 +72,15 @@ Still.Engine = function (paint, live, lines, size) {
     var grow = 2;
     for (var g = 0; g < grow; g++) {
       var add = [];
-      for (var yy = Math.max(1, minY - 1); yy <= Math.min(size - 2, maxY + 1); yy++)
-        for (var xx = Math.max(1, minX - 1); xx <= Math.min(size - 2, maxX + 1); xx++) {
-          var k = yy * size + xx;
+      for (var yy = Math.max(1, minY - 1); yy <= Math.min(H - 2, maxY + 1); yy++)
+        for (var xx = Math.max(1, minX - 1); xx <= Math.min(W - 2, maxX + 1); xx++) {
+          var k = yy * W + xx;
           if (mask[k] || !b[k]) continue;
-          if (mask[k - 1] || mask[k + 1] || mask[k - size] || mask[k + size]) add.push(k);
+          if (mask[k - 1] || mask[k + 1] || mask[k - W] || mask[k + W]) add.push(k);
         }
       for (var q = 0; q < add.length; q++) mask[add[q]] = 2;
-      minX = Math.max(0, minX - 1); maxX = Math.min(size - 1, maxX + 1);
-      minY = Math.max(0, minY - 1); maxY = Math.min(size - 1, maxY + 1);
+      minX = Math.max(0, minX - 1); maxX = Math.min(W - 1, maxX + 1);
+      minY = Math.max(0, minY - 1); maxY = Math.min(H - 1, maxY + 1);
     }
     return { mask: mask, minX: minX, minY: minY, maxX: maxX, maxY: maxY, count: count };
   };
@@ -100,7 +101,7 @@ Still.Engine = function (paint, live, lines, size) {
     x = x | 0; y = y | 0; var b = self.barrier; if (!b) return null;
     for (var r = 0; r <= R; r++) for (var dy = -r; dy <= r; dy++) for (var dx = -r; dx <= r; dx++) {
       if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue; var xx = x + dx, yy = y + dy;
-      if (xx >= 0 && yy >= 0 && xx < size && yy < size && !b[yy * size + xx]) return [xx, yy]; }
+      if (xx >= 0 && yy >= 0 && xx < W && yy < H && !b[yy * W + xx]) return [xx, yy]; }
     return null;
   };
   /* opts: {color, color2, mode:'solid'|'gradient'} */
@@ -118,7 +119,7 @@ Still.Engine = function (paint, live, lines, size) {
       maxD = Math.max(Math.hypot(cx, cy), Math.hypot(w - cx, cy), Math.hypot(cx, h - cy), Math.hypot(w - cx, h - cy)) || 1;
     }
     for (var yy = 0; yy < h; yy++) for (var xx = 0; xx < w; xx++) {
-      var m = r.mask[(yy + r.minY) * size + xx + r.minX]; if (!m) continue;
+      var m = r.mask[(yy + r.minY) * W + xx + r.minX]; if (!m) continue;
       var o = (yy * w + xx) * 4, t = 0;
       if (grad) { t = Math.min(1, Math.hypot(xx - cx, yy - cy) / maxD); t = t * t * (3 - 2 * t); }
       d[o] = c1[0] + (c2[0] - c1[0]) * t; d[o + 1] = c1[1] + (c2[1] - c1[1]) * t; d[o + 2] = c1[2] + (c2[2] - c1[2]) * t; d[o + 3] = 255;
@@ -132,9 +133,15 @@ Still.Engine = function (paint, live, lines, size) {
      Each stroke is stamped onto an off-screen "raw" canvas at full strength. The visible
      live canvas shows raw ∩ texture ∩ stay-inside mask, so you see the real result while
      drawing. On release it is merged into the paint layer with the brush's blend rule. */
-  var raw = document.createElement('canvas'); raw.width = raw.height = size; var rctx = raw.getContext('2d');
-  var maskCv = document.createElement('canvas'); maskCv.width = maskCv.height = size; var mctx = maskCv.getContext('2d');
+  var raw = document.createElement('canvas'); raw.width = W; raw.height = H; var rctx = raw.getContext('2d');
+  var maskCv = document.createElement('canvas'); maskCv.width = W; maskCv.height = H; var mctx = maskCv.getContext('2d');
   self.texCanvases = {};
+  /* Resize every layer for a page of w × h (clears paint, lines and history). */
+  this.setSize = function (w, h) {
+    if (w === W && h === H) return; W = self.W = w; H = self.H = h;
+    [self.paint, self.live, self.lines, raw, maskCv].forEach(function (c) { c.width = w; c.height = h; });
+    self.barrier = null; self.lineAlpha = null;
+  };
   this.loadTextures = function (map, cb) {
     var names = Object.keys(map || {}), left = names.length; if (!left) { cb && cb(); return; }
     names.forEach(function (n) {
@@ -163,16 +170,16 @@ Still.Engine = function (paint, live, lines, size) {
   function bboxClip(ctx, x0, y0, w, h, fn) { ctx.save(); ctx.beginPath(); ctx.rect(x0, y0, w, h); ctx.clip(); fn(); ctx.restore(); }
   this.buildMask = function (x, y) {
     var r = self.region(x, y); if (!r) return null;
-    var img = mctx.createImageData(size, size), d = img.data, m = r.mask;
+    var img = mctx.createImageData(W, H), d = img.data, m = r.mask;
     for (var i = 0; i < m.length; i++) if (m[i]) d[i * 4 + 3] = 255;
-    mctx.clearRect(0, 0, size, size); mctx.putImageData(img, 0, 0); return r;
+    mctx.clearRect(0, 0, W, H); mctx.putImageData(img, 0, 0); return r;
   };
   /* o: {tool, brush, color, size, opacity, smoothing}; pressure 0..1 or null */
   this.beginStroke = function (x, y, o, pressure) {
     var b = self.BRUSHES[o.brush] || self.BRUSHES.round;
     stroke = { pts: [], sm: [x, y], o: o, b: b, minX: x, minY: y, maxX: x, maxY: y, lastT: performance.now(), vf: 1, w: o.size, masked: false };
     if (self.stayInside && o.inside !== false) stroke.masked = !!self.buildMask(x, y);
-    rctx.clearRect(0, 0, size, size); self.lctx.clearRect(0, 0, size, size);
+    rctx.clearRect(0, 0, W, H); self.lctx.clearRect(0, 0, W, H);
     self.live.style.opacity = o.tool === 'eraser' ? 0.5 : (b.merge === 'multiply' ? Math.min(1, o.opacity) : o.opacity);
     self.live.style.mixBlendMode = b.merge === 'multiply' ? 'multiply' : 'normal';
     var w = widthFor(o.size, 0, pressure); stroke.w = w;
@@ -218,24 +225,24 @@ Still.Engine = function (paint, live, lines, size) {
     stroke.minX = Math.min(stroke.minX, nx - m); stroke.maxX = Math.max(stroke.maxX, nx + m);
     stroke.minY = Math.min(stroke.minY, ny - m); stroke.maxY = Math.max(stroke.maxY, ny + m);
   };
-  this.cancelStroke = function () { stroke = null; self.lctx.clearRect(0, 0, size, size); rctx.clearRect(0, 0, size, size); };
+  this.cancelStroke = function () { stroke = null; self.lctx.clearRect(0, 0, W, H); rctx.clearRect(0, 0, W, H); };
   this.isStroking = function () { return !!stroke; };
   this.isMaskedStroke = function () { return !!(stroke && stroke.masked); };
   this.endStroke = function (record) {
     if (!stroke) return;
     var o = stroke.o, b = stroke.b, pad = o.size * 1.3 + 12;
     var x0 = Math.max(0, Math.floor(stroke.minX - pad)), y0 = Math.max(0, Math.floor(stroke.minY - pad));
-    var x1 = Math.min(size, Math.ceil(stroke.maxX + pad)), y1 = Math.min(size, Math.ceil(stroke.maxY + pad));
+    var x1 = Math.min(W, Math.ceil(stroke.maxX + pad)), y1 = Math.min(H, Math.ceil(stroke.maxY + pad));
     var before = snapshot(x0, y0, Math.max(1, x1 - x0), Math.max(1, y1 - y0));
     var fin = self.live;
     if (b.wet && o.tool !== 'eraser') {
       // watercolor: soft bleed (blur) + pigment pooling at the edges, then re-clip to the shape
-      var t = document.createElement('canvas'); t.width = t.height = size; var tc = t.getContext('2d');
+      var t = document.createElement('canvas'); t.width = W; t.height = H; var tc = t.getContext('2d');
       tc.filter = 'blur(' + Math.max(1.5, o.size * 0.08) + 'px)'; tc.drawImage(self.live, 0, 0); tc.filter = 'none';
-      var e = document.createElement('canvas'); e.width = e.height = size; var ec = e.getContext('2d');
+      var e = document.createElement('canvas'); e.width = W; e.height = H; var ec = e.getContext('2d');
       ec.drawImage(t, 0, 0); ec.globalCompositeOperation = 'destination-out'; ec.filter = 'blur(' + Math.max(3, o.size * 0.22) + 'px)';
       ec.globalAlpha = 0.85; ec.drawImage(t, 0, 0); ec.filter = 'none'; ec.globalAlpha = 1; ec.globalCompositeOperation = 'source-over';
-      tc.globalAlpha = 0.55; tc.globalCompositeOperation = 'source-over'; var keep = document.createElement('canvas'); keep.width = keep.height = size;
+      tc.globalAlpha = 0.55; tc.globalCompositeOperation = 'source-over'; var keep = document.createElement('canvas'); keep.width = W; keep.height = H;
       var kc = keep.getContext('2d'); kc.globalAlpha = 0.6; kc.drawImage(t, 0, 0); kc.globalAlpha = 0.9; kc.drawImage(e, 0, 0);
       if (stroke.masked) { kc.globalAlpha = 1; kc.globalCompositeOperation = 'destination-in'; kc.drawImage(maskCv, 0, 0); }
       fin = keep;
@@ -245,7 +252,7 @@ Still.Engine = function (paint, live, lines, size) {
     else { self.pctx.globalCompositeOperation = b.merge; self.pctx.globalAlpha = o.opacity; }
     self.pctx.drawImage(fin, 0, 0);
     self.pctx.restore();
-    self.lctx.clearRect(0, 0, size, size); rctx.clearRect(0, 0, size, size);
+    self.lctx.clearRect(0, 0, W, H); rctx.clearRect(0, 0, W, H);
     self.live.style.mixBlendMode = 'normal';
     if (record !== false) pushHistory(before, { t: 'stroke', tool: o.tool, br: o.brush, c: o.color, s: o.size, a: o.opacity, m: stroke.masked ? 1 : 0, p: stroke.pts });
     stroke = null;
@@ -260,7 +267,7 @@ Still.Engine = function (paint, live, lines, size) {
     }
     ctx.save(); // v1 strokes
     if (op.tool === 'eraser') ctx.globalCompositeOperation = 'destination-out';
-    var tmp = document.createElement('canvas'); tmp.width = tmp.height = size;
+    var tmp = document.createElement('canvas'); tmp.width = W; tmp.height = H;
     var t = tmp.getContext('2d'); t.strokeStyle = t.fillStyle = op.c; t.lineWidth = op.s; t.lineCap = t.lineJoin = 'round';
     t.beginPath(); t.moveTo(op.p[0][0], op.p[0][1]);
     for (var j = 1; j < op.p.length; j++) t.lineTo(op.p[j][0], op.p[j][1]);
@@ -279,16 +286,16 @@ Still.Engine = function (paint, live, lines, size) {
     self.undoStack.push(h); self.ops.push(h.op); self.onChange(); return true;
   };
   this.clear = function () {
-    var before = snapshot(0, 0, size, size);
-    self.pctx.clearRect(0, 0, size, size);
+    var before = snapshot(0, 0, W, H);
+    self.pctx.clearRect(0, 0, W, H);
     pushHistory(before, { t: 'clear' });
   };
   this.resetHistory = function () { self.undoStack = []; self.redoStack = []; };
 
   /* Share of open (non-line) area that has paint, sampled for speed. */
   this.progress = function () {
-    var d = self.pctx.getImageData(0, 0, size, size).data, open = 0, painted = 0;
-    for (var i = 0; i < size * size; i += 37) {
+    var d = self.pctx.getImageData(0, 0, W, H).data, open = 0, painted = 0;
+    for (var i = 0; i < W * H; i += 37) {
       if (self.barrier && self.barrier[i]) continue;
       open++; if (d[i * 4 + 3] > 20) painted++;
     }
@@ -296,7 +303,7 @@ Still.Engine = function (paint, live, lines, size) {
   };
   /* Paper + paint + lines merged into one canvas (for export and thumbnails). */
   this.composite = function (out) {
-    var c = document.createElement('canvas'); c.width = c.height = out || size;
+    var k = out ? out / Math.max(W, H) : 1, c = document.createElement('canvas'); c.width = Math.round(W * k); c.height = Math.round(H * k);
     var x = c.getContext('2d'); x.fillStyle = '#fbfaf7'; x.fillRect(0, 0, c.width, c.height);
     x.drawImage(self.paint, 0, 0, c.width, c.height); x.drawImage(self.lines, 0, 0, c.width, c.height);
     return c;

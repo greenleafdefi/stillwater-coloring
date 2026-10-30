@@ -1,10 +1,10 @@
 /* Color by Number mode. Works on any page:
    - pages with `cmap` (original CBN pages): target colors come from the hidden color map
-   - photo pages with `cmap` (the photo itself): region average colors, grouped with k-means
+   - pages with a `cmap` reference image: region average colors, grouped with k-means
    - any other page: a soft seeded auto palette
    Progress is read back from the paint layer, so autosave, undo and resume just work. */
 (function () {
-  var S = 1200, MIN = 140; // areas smaller than MIN px are not numbered (they are filled at the end)
+  var S = 1200, T = 1200, MIN = 140; // S = page width (and row stride), T = page height; // areas smaller than MIN px are not numbered (they are filled at the end)
   var C = { on: false };
   var $ = function (s) { return document.querySelector(s); };
   function hex(c) { return '#' + c.map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''); }
@@ -14,38 +14,38 @@
 
   /* 1. label every closed area (no grow), 4-connected scanline */
   function label(bar) {
-    var lab = new Int32Array(S * S).fill(-1), regs = [], st = [];
-    for (var p0 = 0; p0 < S * S; p0++) {
+    var lab = new Int32Array(S * T).fill(-1), regs = [], st = [];
+    for (var p0 = 0; p0 < S * T; p0++) {
       if (bar[p0] || lab[p0] >= 0) continue;
       var id = regs.length, cnt = 0, sx = 0, sy = 0, touch = false; st.length = 0; st.push(p0); lab[p0] = id;
       while (st.length) { var p = st.pop(), x = p % S, y = (p - x) / S; cnt++; sx += x; sy += y;
-        if (x === 0 || y === 0 || x === S - 1 || y === S - 1) touch = true;
+        if (x === 0 || y === 0 || x === S - 1 || y === T - 1) touch = true;
         if (x > 0 && !bar[p - 1] && lab[p - 1] < 0) { lab[p - 1] = id; st.push(p - 1); }
         if (x < S - 1 && !bar[p + 1] && lab[p + 1] < 0) { lab[p + 1] = id; st.push(p + 1); }
         if (y > 0 && !bar[p - S] && lab[p - S] < 0) { lab[p - S] = id; st.push(p - S); }
-        if (y < S - 1 && !bar[p + S] && lab[p + S] < 0) { lab[p + S] = id; st.push(p + S); } }
+        if (y < T - 1 && !bar[p + S] && lab[p + S] < 0) { lab[p + S] = id; st.push(p + S); } }
       regs.push({ id: id, n: cnt, cx: sx / cnt, cy: sy / cnt, edge: touch, sum: [0, 0, 0], a: 0, k: 0 });
     }
     return { lab: lab, regs: regs };
   }
   /* 2. distance to the nearest line / other area (chamfer 3-4), keep the deepest point per area for its number */
   function placeNumbers(lab, regs) {
-    var D = new Uint16Array(S * S), i, x, y, INF = 65000;
-    for (i = 0; i < S * S; i++) D[i] = lab[i] < 0 ? 0 : INF;
-    for (y = 0; y < S; y++) for (x = 0; x < S; x++) { i = y * S + x; if (!D[i]) continue; var v = D[i];
+    var D = new Uint16Array(S * T), i, x, y, INF = 65000;
+    for (i = 0; i < S * T; i++) D[i] = lab[i] < 0 ? 0 : INF;
+    for (y = 0; y < T; y++) for (x = 0; x < S; x++) { i = y * S + x; if (!D[i]) continue; var v = D[i];
       if (x > 0) v = Math.min(v, D[i - 1] + 3); if (y > 0) { v = Math.min(v, D[i - S] + 3); if (x > 0) v = Math.min(v, D[i - S - 1] + 4); if (x < S - 1) v = Math.min(v, D[i - S + 1] + 4); }
       if (x === 0 || y === 0) v = Math.min(v, 3); D[i] = v; }
-    for (y = S - 1; y >= 0; y--) for (x = S - 1; x >= 0; x--) { i = y * S + x; if (!D[i]) continue; var w = D[i];
-      if (x < S - 1) w = Math.min(w, D[i + 1] + 3); if (y < S - 1) { w = Math.min(w, D[i + S] + 3); if (x < S - 1) w = Math.min(w, D[i + S + 1] + 4); if (x > 0) w = Math.min(w, D[i + S - 1] + 4); }
-      if (x === S - 1 || y === S - 1) w = Math.min(w, 3); D[i] = w; }
+    for (y = T - 1; y >= 0; y--) for (x = S - 1; x >= 0; x--) { i = y * S + x; if (!D[i]) continue; var w = D[i];
+      if (x < S - 1) w = Math.min(w, D[i + 1] + 3); if (y < T - 1) { w = Math.min(w, D[i + S] + 3); if (x < S - 1) w = Math.min(w, D[i + S + 1] + 4); if (x > 0) w = Math.min(w, D[i + S - 1] + 4); }
+      if (x === S - 1 || y === T - 1) w = Math.min(w, 3); D[i] = w; }
     regs.forEach(function (r) { r.best = -1; });
-    for (i = 0; i < S * S; i++) { var l = lab[i]; if (l >= 0 && D[i] > regs[l].best) { regs[l].best = D[i]; regs[l].bx = i % S; regs[l].by = (i / S) | 0; } }
+    for (i = 0; i < S * T; i++) { var l = lab[i]; if (l >= 0 && D[i] > regs[l].best) { regs[l].best = D[i]; regs[l].bx = i % S; regs[l].by = (i / S) | 0; } }
     regs.forEach(function (r) { r.rad = r.best / 3; });
   }
   /* 3. target colors */
   function sampleCmap(cm, lab, regs) {
-    var d = cm.getContext('2d').getImageData(0, 0, S, S).data;
-    for (var i = 0; i < S * S; i += 1) { var l = lab[i]; if (l < 0) continue; var r = regs[l], o = i * 4;
+    var d = cm.getContext('2d').getImageData(0, 0, S, T).data;
+    for (var i = 0; i < S * T; i += 1) { var l = lab[i]; if (l < 0) continue; var r = regs[l], o = i * 4;
       if (d[o + 3] > 200) { r.sum[0] += d[o]; r.sum[1] += d[o + 1]; r.sum[2] += d[o + 2]; r.a++; } }
   }
   function kmeans(pts, wts, k) { // weighted, deterministic seeding (farthest point)
@@ -88,7 +88,7 @@
   /* ---------- runtime ---------- */
   function ensureLayers() {
     if ($('#cbn-num')) return;
-    ['cbn-hl', 'cbn-num'].forEach(function (id) { var c = document.createElement('canvas'); c.id = id; c.width = c.height = S; c.className = 'cbn-layer'; c.setAttribute('aria-hidden', 'true'); $('#stack').appendChild(c); });
+    ['cbn-hl', 'cbn-num'].forEach(function (id) { var c = document.createElement('canvas'); c.id = id; c.width = S; c.height = T; c.className = 'cbn-layer'; c.setAttribute('aria-hidden', 'true'); $('#stack').appendChild(c); });
     var bar = document.createElement('div'); bar.id = 'cbn-bar'; bar.hidden = true; bar.setAttribute('role', 'group'); bar.setAttribute('aria-label', 'Color by number colors');
     bar.innerHTML = '<div class="cbn-prog"><span id="cbn-count" aria-live="polite"></span><div class="bar"><i id="cbn-fill"></i></div><button id="cbn-next" title="Show me an empty area">Find next</button></div><div id="cbn-sw" class="cbn-sw"></div>';
     $('#studio').appendChild(bar);
@@ -100,13 +100,15 @@
     $('#cbn-again').onclick = function () { $('#cbn-done').hidden = true; C.app.engine.clear(); refresh(); };
   }
   function cmapCanvas(page, cb) {
-    var c = document.createElement('canvas'); c.width = c.height = S; var im = new Image();
-    im.onload = function () { var x = c.getContext('2d'); if (page.cmapFit) { x.drawImage(im, page.cmapFit[0], page.cmapFit[1], page.cmapFit[2], page.cmapFit[3]); } else x.drawImage(im, 0, 0, S, S); cb(c); };
+    var c = document.createElement('canvas'); c.width = S; c.height = T; var im = new Image();
+    im.onload = function () { var x = c.getContext('2d'); if (page.cmapFit) { x.drawImage(im, page.cmapFit[0], page.cmapFit[1], page.cmapFit[2], page.cmapFit[3]); } else x.drawImage(im, 0, 0, S, T); cb(c); };
     im.onerror = function () { cb(null); };
     im.src = page.cmap.indexOf('data:') === 0 ? page.cmap : 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(page.cmap);
   }
   C.start = function (app, page, cb) {
-    C.app = app; ensureLayers(); var E = app.engine, easy = document.body.classList.contains('easy');
+    C.app = app; S = app.engine.W; T = app.engine.H; ensureLayers();
+    ['cbn-hl', 'cbn-num'].forEach(function (id) { var c = $('#' + id); if (c.width !== S || c.height !== T) { c.width = S; c.height = T; } });
+    var E = app.engine, easy = document.body.classList.contains('easy');
     var t0 = performance.now(), L = label(E.barrier);
     var go = function (cm) {
       if (cm) { L.regs.forEach(function (r) { r.cm = true; }); sampleCmap(cm, L.lab, L.regs); }
@@ -117,14 +119,14 @@
       document.body.classList.add('cbn'); $('#cbn-bar').hidden = false; $('#cbn-num').style.opacity = 1;
       renderBar(); select(1); refresh(); app.setTool('fill');
       // fit the page above the number bar
-      var v = app.view, vr = $('#viewport').getBoundingClientRect(), br = $('#cbn-bar').getBoundingClientRect(), bh = Math.max(0, vr.bottom - br.top + 8), sc = Math.min(vr.width, vr.height - bh) * 0.94 / S;
-      if (sc > 0.1) { v.scale = sc; v.x = (vr.width - S * sc) / 2; v.y = Math.max(8, (vr.height - bh - S * sc) / 2); v.panBy(0, 0); }
+      var v = app.view, vr = $('#viewport').getBoundingClientRect(), br = $('#cbn-bar').getBoundingClientRect(), bh = Math.max(0, vr.bottom - br.top + 8), sc = Math.min(vr.width / S, (vr.height - bh) / T) * 0.94;
+      if (sc > 0.1) { v.scale = sc; v.x = (vr.width - S * sc) / 2; v.y = Math.max(8, (vr.height - bh - T * sc) / 2); v.panBy(0, 0); }
       cb && cb();
     };
     if (page.cmap) cmapCanvas(page, go); else go(null);
   };
   C.stop = function () { if (!C.on) return; C.on = false; document.body.classList.remove('cbn', 'cbn-reveal'); $('#cbn-bar').hidden = true; $('#cbn-done').hidden = true;
-    ['cbn-hl', 'cbn-num'].forEach(function (id) { var c = $('#' + id); c.getContext('2d').clearRect(0, 0, S, S); }); };
+    ['cbn-hl', 'cbn-num'].forEach(function (id) { var c = $('#' + id); c.getContext('2d').clearRect(0, 0, S, T); }); };
   function renderBar() {
     var el = $('#cbn-sw'); el.innerHTML = '';
     C.colors.forEach(function (c, i) { var n = i + 1, b = document.createElement('button'); b.className = 'cbn-c'; b.dataset.n = n; b.style.background = c;
@@ -135,7 +137,7 @@
   /* an area counts as done when its number point holds its target color in the paint layer */
   function isDone(r, d) { var o = (r.by * S + r.bx) * 4; return d[o + 3] > 200 && Math.abs(d[o] - r.rgb[0]) + Math.abs(d[o + 1] - r.rgb[1]) + Math.abs(d[o + 2] - r.rgb[2]) < 24; }
   function refresh() {
-    if (!C.on) return; var d = C.app.engine.pctx.getImageData(0, 0, S, S).data, done = 0, left = {};
+    if (!C.on) return; var d = C.app.engine.pctx.getImageData(0, 0, S, T).data, done = 0, left = {};
     C.areas.forEach(function (r) { r.done = isDone(r, d); if (r.done) done++; else left[r.num] = (left[r.num] || 0) + 1; });
     C.done = done;
     $('#cbn-count').textContent = done + ' / ' + C.areas.length + ' areas';
@@ -147,7 +149,7 @@
   }
   C.refresh = refresh;
   function drawNumbers() {
-    var x = $('#cbn-num').getContext('2d'); x.clearRect(0, 0, S, S); x.textAlign = 'center'; x.textBaseline = 'middle';
+    var x = $('#cbn-num').getContext('2d'); x.clearRect(0, 0, S, T); x.textAlign = 'center'; x.textBaseline = 'middle';
     var big = C.easy ? 1.35 : 1, bt = document.body.classList.contains('bigtext') ? 1.2 : 1;
     C.areas.forEach(function (r) { if (r.done) return;
       var fs = Math.max(11, Math.min(46 * big * bt, r.rad * 1.1 * big * bt));
@@ -156,14 +158,14 @@
       x.strokeText(r.num, r.bx, r.by); x.fillText(r.num, r.bx, r.by); });
   }
   function drawHighlight() {
-    var cv = $('#cbn-hl'), x = cv.getContext('2d'), img = x.createImageData(S, S), d = img.data, lab = C.lab, want = {};
+    var cv = $('#cbn-hl'), x = cv.getContext('2d'), img = x.createImageData(S, T), d = img.data, lab = C.lab, want = {};
     C.areas.forEach(function (r) { if (r.num === C.sel && !r.done) want[r.id] = 1; });
-    for (var i = 0; i < S * S; i++) { var l = lab[i]; if (l >= 0 && want[l]) { var o = i * 4, s = ((i % S) + ((i / S) | 0)) % 14 < 7; d[o] = 70; d[o + 1] = 130; d[o + 2] = 220; d[o + 3] = s ? 95 : 45; } }
+    for (var i = 0; i < S * T; i++) { var l = lab[i]; if (l >= 0 && want[l]) { var o = i * 4, s = ((i % S) + ((i / S) | 0)) % 14 < 7; d[o] = 70; d[o + 1] = 130; d[o + 2] = 220; d[o + 3] = s ? 95 : 45; } }
     x.putImageData(img, 0, 0);
   }
   function nearestMatching(x, y, R) { // Easy mode: the closest area with the chosen number
     for (var r = 0; r <= R; r += 2) for (var a = 0; a < 16; a++) { var xx = Math.round(x + Math.cos(a * Math.PI / 8) * r), yy = Math.round(y + Math.sin(a * Math.PI / 8) * r);
-      if (xx < 0 || yy < 0 || xx >= S || yy >= S) continue; var l = C.lab[yy * S + xx]; if (l >= 0 && C.regs[l].num === C.sel && !C.regs[l].done) return [xx, yy]; }
+      if (xx < 0 || yy < 0 || xx >= S || yy >= T) continue; var l = C.lab[yy * S + xx]; if (l >= 0 && C.regs[l].num === C.sel && !C.regs[l].done) return [xx, yy]; }
     return null;
   }
   /* called instead of engine.fill while the mode is on */
@@ -190,10 +192,10 @@
   }
   /* gentle reveal: tiny leftovers get their color, numbers fade, the picture softly blooms */
   function reveal() {
-    C.revealing = true; var E = C.app.engine, img = E.pctx.getImageData(0, 0, S, S), d = img.data, lab = C.lab;
+    C.revealing = true; var E = C.app.engine, img = E.pctx.getImageData(0, 0, S, T), d = img.data, lab = C.lab;
     var tiny = {}; C.regs.forEach(function (r) { if (r.num) return; // tiny or uncolored areas: borrow the nearest numbered neighbour's color
       var best = null, bd = Infinity; C.areas.forEach(function (a) { var dd = (a.cx - r.cx) * (a.cx - r.cx) + (a.cy - r.cy) * (a.cy - r.cy); if (dd < bd) { bd = dd; best = a; } }); if (best && r.n < 4000) tiny[r.id] = best.rgb; });
-    for (var i = 0; i < S * S; i++) { var t = tiny[lab[i]]; if (t && d[i * 4 + 3] < 10) { d[i * 4] = t[0]; d[i * 4 + 1] = t[1]; d[i * 4 + 2] = t[2]; d[i * 4 + 3] = 255; } }
+    for (var i = 0; i < S * T; i++) { var t = tiny[lab[i]]; if (t && d[i * 4 + 3] < 10) { d[i * 4] = t[0]; d[i * 4 + 1] = t[1]; d[i * 4 + 2] = t[2]; d[i * 4 + 3] = 255; } }
     E.pctx.putImageData(img, 0, 0);
     document.body.classList.add('cbn-reveal');
     var ids = window.Still.store.get('cbn-done', []); if (ids.indexOf(C.page.id) < 0) { ids.push(C.page.id); window.Still.store.set('cbn-done', ids); }

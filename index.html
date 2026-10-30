@@ -17,7 +17,7 @@
     <nav class="tabs">
       <button class="tab active" data-tab="all">All pages</button>
       <button class="tab" data-tab="works">My works</button>
-      <button class="tab" data-tab="photos">My photos</button>
+      <button class="tab" data-tab="mine">My pages</button>
       <button class="tab" data-tab="cbn">🔢 Color by Number</button>
       <button class="tab" data-tab="easy">🖍 Easy coloring</button>
       <button class="tab" data-tab="relax">🌙 Relax</button>
@@ -33,9 +33,9 @@
     <div id="moods"></div>
     <em id="mood-note"></em>
   </div>
-  <div class="photo-hero">
-    <div><h2>📷 Photo to coloring page</h2><p>Turn any photo — your pet, a garden, a trip — into clean line art you can fill. It all happens on this computer; nothing is uploaded.</p></div>
-    <button id="photo-open" class="primary">Choose a photo</button>
+  <div class="own-hero">
+    <div><h2>✏️ Bring your own line art</h2><p>Add your own black-and-white coloring page. Stillwater cleans it up so fills stay inside the lines. Works best with black-and-white coloring pages. Tip: you can make one with an AI image app.</p></div>
+    <button id="la-open" class="primary">Add your line art</button>
   </div>
   <div class="lib-bar">
     <input id="search" type="search" placeholder="Search 120+ pages — try “owl”, “winter”, “mandala”" aria-label="Search pages">
@@ -121,30 +121,25 @@
   </div>
 </section>
 
-<!-- ============ PHOTO CONVERTER ============ -->
-<div id="photo" class="modal" hidden>
+<!-- ============ BRING YOUR OWN LINE ART ============ -->
+<div id="lineart" class="modal" hidden>
   <div class="modal-card">
-    <header><h2>Photo to coloring page</h2><button id="photo-close" class="ghost" title="Close">✕</button></header>
+    <header><h2>Bring your own line art</h2><button id="la-close" class="ghost" title="Close">✕</button></header>
+    <p class="la-hint">Works best with black-and-white coloring pages. Tip: you can make one with an AI image app.</p>
     <label id="drop" class="drop">
-      <input id="photo-file" type="file" accept="image/*" hidden>
-      <span><b>Drop a photo here</b> or click to choose one (JPG, PNG, HEIC not supported)</span>
+      <input id="la-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
+      <span><b>Tap to choose your line art</b> or drop it here (JPG or PNG)</span>
     </label>
-    <div id="photo-work" hidden>
+    <div id="la-work" hidden>
       <div class="ba">
-        <figure><canvas id="ph-before"></canvas><figcaption>Before</figcaption></figure>
-        <figure><canvas id="ph-after"></canvas><figcaption>After · <span id="ph-stats" aria-live="polite">…</span></figcaption><div id="ph-working" class="ph-working" hidden aria-hidden="true"><i></i><i></i><i></i><span>Working…</span></div></figure>
+        <figure><canvas id="la-before"></canvas><figcaption>Your image</figcaption></figure>
+        <figure><canvas id="la-after"></canvas><figcaption>Cleaned · <span id="la-stats" aria-live="polite">…</span></figcaption><div id="la-working" class="la-working-dots" hidden aria-hidden="true"><i></i><i></i><i></i><span>Working…</span></div></figure>
       </div>
-      <div class="ph-controls">
-        <div class="seg" id="ph-style">
-          <button data-style="portrait" class="on" title="Best for people: keeps eyes, brows and lips, smooths face shading">Portrait</button><button data-style="outline">Clean outline</button><button data-style="sketch">Sketch</button><button data-style="mosaic">Mosaic regions</button>
-        </div>
-        <label class="slider">Detail <output id="ph-detail-v">7</output><input id="ph-detail" type="range" min="1" max="10" value="7"></label>
-        <label class="slider">Line thickness <output id="ph-thick-v">2</output><input id="ph-thick" type="range" min="1" max="5" value="2"></label>
-        <label class="slider">Simplify <output id="ph-simp-v">4</output><input id="ph-simp" type="range" min="0" max="10" value="4"></label>
-        <label class="check"><input id="ph-regions" type="checkbox"> Add color-region outlines</label>
-        <label class="check"><input id="ph-cbn" type="checkbox"> Make it Color by Number (uses Portrait or Mosaic)</label>
-        <label class="slider">Name <input id="ph-name" type="text" maxlength="28" placeholder="My photo"></label>
-        <button id="ph-start" class="primary">Start coloring →</button>
+      <div class="la-controls">
+        <label class="slider">Line boost <output id="la-boost-v">0</output><input id="la-boost" type="range" min="0" max="4" value="0"></label>
+        <label class="check"><input id="la-cbn" type="checkbox"> Make it Color by Number</label>
+        <label class="slider">Name <input id="la-name" type="text" maxlength="28" placeholder="My page"></label>
+        <button id="la-start" class="primary">Start coloring →</button>
       </div>
     </div>
   </div>
@@ -154,6 +149,7 @@
 
 <!-- Plain script tags (no modules) so the app works when opened straight from a file. -->
 <script src="pages/pages.js"></script>
+<script src="library/featured.js"></script>
 <script src="library/cbn.js"></script>
 <script src="library/easy.js"></script>
 <script src="library/relax.js"></script>
@@ -171,7 +167,7 @@
 <script src="js/engine.js"></script>
 <script src="js/view.js"></script>
 <script src="js/calm.js"></script>
-<script src="js/photo.js"></script>
+<script src="js/lineart.js"></script>
 <script src="js/pi.js"></script>
 <script src="js/cbn.js"></script>
 <script src="js/app.js"></script>
